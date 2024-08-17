@@ -20,7 +20,7 @@ const validateRegisterSchema = Yup.object().shape({
 });
 
 const validateLoginSchema = Yup.object().shape({
-  email: Yup.string().email().required(),
+  identifier: Yup.string().required(),
   password: Yup.string().required(),
 });
 
@@ -69,56 +69,69 @@ export default {
     }
   },
 
-async me(req: Request, res: Response) {
-  const tokenKey = req.params.tokenKey || req.headers.authorization?.split(" ")[1];
+  async me(req: Request, res: Response) {
+    const tokenKey =
+      req.params.tokenKey || req.headers.authorization?.split(" ")[1];
 
-  if (!tokenKey) {
-    console.error("Token not provided");
-    return res.status(400).json({ error: "Token not provided" });
-  }
-
-  try {
-    console.log("Received token:", tokenKey);
-
-    const decodedToken = jwt.verify(tokenKey, SECRET) as { id: string };
-    console.log("Decoded token:", decodedToken);
-
-    const user = await UserModel.findById(decodedToken.id).select("-password");
-
-    if (!user) {
-      console.log("User not found with ID:", decodedToken.id);
-      return res.status(401).json({ error: "User is not logged in" });
+    if (!tokenKey) {
+      console.error("Token not provided");
+      return res.status(400).json({ error: "Token not provided" });
     }
-
-    console.log("Found user:", user);
-
-    if (user.roles === "Customer") {
-      const customer = await CustomerModel.findOne({ user: user._id }).populate('user');
-      return res.status(200).json(customer || user);
-    } else if (user.roles === "Seller") {
-      const seller = await SellerModel.findOne({ user: user._id }).populate('user');
-      return res.status(200).json(seller || user);
-    } else {
-      return res.status(200).json(user);
-    }
-  } catch (error) {
-    console.error("Error during token verification or user retrieval:", error);
-    return res.status(401).json({ error: "User is not logged in" });
-  }
-},
-  async login(req: Request, res: Response) {
-    const { email, password } = req.body;
 
     try {
-      await validateLoginSchema.validate({ email, password });
+      console.log("Received token:", tokenKey);
 
-      const user = await UserModel.findOne({ email });
+      const decodedToken = jwt.verify(tokenKey, SECRET) as { id: string };
+      console.log("Decoded token:", decodedToken);
+
+      const user = await UserModel.findById(decodedToken.id).select(
+        "-password"
+      );
+
+      if (!user) {
+        console.log("User not found with ID:", decodedToken.id);
+        return res.status(401).json({ error: "User is not logged in" });
+      }
+
+      console.log("Found user:", user);
+
+      if (user.roles === "Customer") {
+        const customer = await CustomerModel.findOne({
+          user: user._id,
+        }).populate("user");
+        return res.status(200).json(customer || user);
+      } else if (user.roles === "Seller") {
+        const seller = await SellerModel.findOne({ user: user._id }).populate(
+          "user"
+        );
+        return res.status(200).json(seller || user);
+      } else {
+        return res.status(200).json(user);
+      }
+    } catch (error) {
+      console.error(
+        "Error during token verification or user retrieval:",
+        error
+      );
+      return res.status(401).json({ error: "User is not logged in" });
+    }
+  },
+  async login(req: Request, res: Response) {
+    const { identifier, password } = req.body;
+
+    try {
+      await validateLoginSchema.validate({ identifier, password });
+
+      // Cari user berdasarkan email atau username
+      const user = await UserModel.findOne({
+        $or: [{ email: identifier }, { username: identifier }],
+      });
 
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
 
-      if (!user.isVerify) {
+      if (user.isVerify === false) {
         return res.status(403).json({
           message: "Your account is not verified. Please check your email.",
         });
@@ -129,7 +142,7 @@ async me(req: Request, res: Response) {
       if (password !== decryptedPassword) {
         return res
           .status(400)
-          .json({ message: "Email and Password do not match" });
+          .json({ message: "Email/Username and Password do not match" });
       }
 
       const token = jwt.sign({ id: user._id, roles: user.roles }, SECRET, {
@@ -156,7 +169,6 @@ async me(req: Request, res: Response) {
       });
     }
   },
-
   async register(req: Request, res: Response) {
     const { name, username, email, password } = req.body;
 
