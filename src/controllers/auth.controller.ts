@@ -101,18 +101,13 @@ export default {
         }).populate("user");
         return res.status(200).json(customer || user);
       } else if (user.roles === "Seller") {
-        const seller = await SellerModel.findOne({ user: user._id }).populate(
-          "user"
-        );
+        const seller = await SellerModel.findOne({ user: user._id }).populate("user");
         return res.status(200).json(seller || user);
       } else {
         return res.status(200).json(user);
       }
     } catch (error) {
-      console.error(
-        "Error during token verification or user retrieval:",
-        error
-      );
+      console.error("Error during token verification or user retrieval:",error);
       return res.status(401).json({ error: "User is not logged in" });
     }
   },
@@ -122,7 +117,6 @@ export default {
     try {
       await validateLoginSchema.validate({ identifier, password });
 
-      // Cari user berdasarkan email atau username
       const user = await UserModel.findOne({
         $or: [{ email: identifier }, { username: identifier }],
       });
@@ -140,14 +134,10 @@ export default {
       const decryptedPassword = decrypt(SECRET, user.password);
 
       if (password !== decryptedPassword) {
-        return res
-          .status(400)
-          .json({ message: "Email/Username and Password do not match" });
+        return res.status(400).json({ message: "Email/Username and Password do not match" });
       }
 
-      const token = jwt.sign({ id: user._id, roles: user.roles }, SECRET, {
-        expiresIn: "6h",
-      });
+      const token = jwt.sign({ id: user._id, roles: user.roles }, SECRET, {expiresIn: "6h",});
 
       res.status(200).json({
         message: "User logged in successfully",
