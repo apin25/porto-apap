@@ -29,7 +29,7 @@ export const authenticate = (
       isVerify: boolean;
     };
 
-    if (!user.isVerify) {
+    if (user.isVerify === false) {
       return res.status(403).json({
         message: "Forbidden: Account is not verified",
       });
@@ -40,6 +40,7 @@ export const authenticate = (
       roles: user.roles,
       isVerify: user.isVerify,
     };
+
     next();
   } catch (err) {
     if (err instanceof Error) {

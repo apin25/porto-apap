@@ -4,6 +4,7 @@ import { SECRET } from "../utils/env";
 
 const Schema = mongoose.Schema;
 
+// Skema User
 const UserSchema = new Schema(
   {
     name: {
@@ -30,7 +31,7 @@ const UserSchema = new Schema(
     },
     roles: {
       type: String,
-      required: true,
+      default: "Customer",
       enum: ["Seller", "Customer"],
     },
     isVerify: {
@@ -50,6 +51,7 @@ const UserSchema = new Schema(
   }
 );
 
+// Hash password sebelum menyimpan atau mengupdate
 UserSchema.pre("save", async function (next) {
   const user = this;
   if (user.isModified("password")) {
@@ -66,14 +68,28 @@ UserSchema.pre("updateOne", async function (next) {
   next();
 });
 
-
+// Metode untuk menghapus password dari JSON output
 UserSchema.methods.toJSON = function () {
   const user = this.toObject();
   delete user.password;
   return user;
 };
 
+// Skema Seller
 const SellerSchema = new Schema({
+  seller_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    default: function () {
+      return new mongoose.Types.ObjectId(); // Otomatis menghasilkan ObjectId
+    },
+    unique: true,
+  },
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+    unique: true,
+  },
   category: {
     type: String,
     required: true,
@@ -81,15 +97,26 @@ const SellerSchema = new Schema({
   },
 });
 
+// Skema Customer
 const CustomerSchema = new Schema({
-  cartId: {
+  customer_id: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "Cart",
+    default: function () {
+      return new mongoose.Types.ObjectId(); // Otomatis menghasilkan ObjectId
+    },
+    unique: true,
+  },
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+    unique: true,
   },
 });
 
+// Model Mongoose
 const UserModel = mongoose.model("User", UserSchema);
-const SellerModel = UserModel.discriminator("Seller", SellerSchema);
-const CustomerModel = UserModel.discriminator("Customer", CustomerSchema);
+const SellerModel = mongoose.model("Seller", SellerSchema);
+const CustomerModel = mongoose.model("Customer", CustomerSchema);
 
 export { UserModel, SellerModel, CustomerModel };
